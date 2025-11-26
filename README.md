@@ -1,34 +1,34 @@
 # arruma-ruyter
 
-Monorepo com o bot Probot (`/bot`) e a aplicação Next.js (`/web-app`).
+Monorepo with the Probot bot (`/bot`) and the Next.js app (`/web-app`).
 
-## Pré-requisitos
+## Prerequisites
 - Node 18+
-- GitHub App configurado para o bot (APP_ID, PRIVATE_KEY, WEBHOOK_SECRET). Use `bot/.env.example` como base.
+- GitHub App configured for the bot (APP_ID, PRIVATE_KEY, WEBHOOK_SECRET). Use `bot/.env.example` as a template.
 
-## Setup rápido (passo a passo)
-1) Na raiz, instale o tooling para os scripts compartilhados:
+## Quick setup
+1) At repo root, install shared tooling:
 ```
 npm install
 ```
-2) Instale as dependências de cada app:
+2) Install app dependencies:
 ```
 npm install --prefix bot
 npm install --prefix web-app
 ```
-3) Configure o `.env` do bot (porta 3001 já está no script):
+3) Configure the bot `.env` (port 3001 is set in the start script):
 ```
 cd bot
-copy .env.example .env   # ou cp .env.example .env (Linux/Mac)
-# Preencha APP_ID, PRIVATE_KEY (PEM) e WEBHOOK_SECRET
+copy .env.example .env   # or: cp .env.example .env (Linux/Mac)
+# Fill APP_ID, PRIVATE_KEY (PEM), WEBHOOK_SECRET
 cd ..
 ```
 
-## Rodar em desenvolvimento
-- Bot (porta 3001): `npm run dev:bot`
-- Web (porta 3000): `npm run dev:web`
-- Ambos em paralelo: `npm run dev:all`
+## Run in dev
+- Bot (port 3001): `npm run dev:bot`
+- Web (port 3000): `npm run dev:web`
+- Both in parallel: `npm run dev:all`
 
-## Notas rápidas
-- O Probot fica em modo setup sem APP_ID/PRIVATE_KEY/WEBHOOK_SECRET; acesse http://localhost:3001 para instruções.
-- O aviso do Next sobre lockfiles múltiplos é informativo; ajuste `turbopack.root` em `web-app/next.config.ts` ou ignore.
+## Notes
+- Probot stays in setup mode without APP_ID/PRIVATE_KEY/WEBHOOK_SECRET; visit http://localhost:3001 for guidance.
+- The Next.js warning about multiple lockfiles is informational; set `turbopack.root` in `web-app/next.config.ts` to silence it, or ignore.
