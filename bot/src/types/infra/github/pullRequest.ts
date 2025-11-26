@@ -1,3 +1,3 @@
-import type { components } from "@octokit/openapi-types";
+import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 
-export type PullRequestFile = components["schemas"]["pull-request-file"];
+export type PullRequestFile = RestEndpointMethodTypes["pulls"]["listFiles"]["response"]["data"][number];

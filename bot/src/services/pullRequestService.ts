@@ -1,9 +1,9 @@
-import type { Octokit } from "probot";
+import type { ProbotOctokit } from "probot";
 import { listPullRequestFilenames } from "../infra/github.js";
 import type { PullRequestSummary } from "../types/domain/pullRequest.js";
 
 export type PullRequestSummaryInput = {
-  octokit: Octokit;
+  octokit: ProbotOctokit;
   owner: string;
   repo: string;
   pullNumber: number;

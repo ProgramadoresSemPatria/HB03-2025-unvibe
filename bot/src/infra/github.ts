@@ -1,4 +1,4 @@
-import type { Octokit } from "probot";
+import type { ProbotOctokit } from "probot";
 import { extractFilenames } from "../utils/filenames.js";
 import type { PullRequestFile } from "../types/infra/github/pullRequest.js";
 
@@ -9,7 +9,7 @@ type ListFilesParams = {
 };
 
 export const listPullRequestFilenames = async (
-  octokit: Octokit,
+  octokit: ProbotOctokit,
   params: ListFilesParams
 ): Promise<string[]> => {
   const { owner, repo, pullNumber } = params;
