@@ -7,23 +7,21 @@ export function DemoSection() {
             Automated Security Reviews
           </h2>
           <p className="mt-4 text-lg leading-8 text-gray-600 ">
-            Arruma catches vulnerabilities before they merge. It comments directly on your PRs with actionable fixes.
+            Unvibe catches vulnerabilities before they merge. It comments directly on your PRs with actionable fixes.
           </p>
         </div>
 
         <div className="relative mx-auto max-w-4xl rounded-2xl bg-white shadow-xl ring-1 ring-gray-900/10   overflow-hidden">
-          {/* Mock Browser Header */}
           <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3  ">
             <div className="flex gap-1.5">
               <div className="h-3 w-3 rounded-full bg-red-500" />
               <div className="h-3 w-3 rounded-full bg-yellow-500" />
               <div className="h-3 w-3 rounded-full bg-green-500" />
             </div>
-            <div className="mx-auto text-xs text-gray-400 font-mono">github.com/arruma/web-app/pull/123</div>
+            <div className="mx-auto text-xs text-gray-400 font-mono">github.com/unvibe/web-app/pull/123</div>
           </div>
 
           <div className="flex flex-col md:flex-row">
-            {/* Code Side */}
             <div className="flex-1 p-6 font-mono text-sm bg-white  text-gray-800  overflow-x-auto">
               <div className="flex gap-4">
                 <div className="text-gray-400 select-none text-right w-6">1</div>
@@ -57,7 +55,6 @@ export function DemoSection() {
               </div>
             </div>
 
-            {/* Bot Comment Side */}
             <div className="w-full md:w-96 border-l border-gray-200 bg-gray-50 p-6  ">
               <div className="flex items-start gap-3">
                 <div className="h-8 w-8 flex-shrink-0 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-xs">
@@ -65,7 +62,7 @@ export function DemoSection() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900 ">Arruma Bot</p>
+                    <p className="text-sm font-semibold text-gray-900 ">Unvibe Bot</p>
                     <span className="text-xs text-gray-500">Just now</span>
                   </div>
                   <div className="mt-1 rounded-md bg-white p-3 text-sm shadow-sm ring-1 ring-gray-200 ">

@@ -8,16 +8,15 @@ export function Footer() {
           <div className="space-y-8">
             <Link href="/" className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold">
-                A
+                U
               </div>
-              <span className="text-xl font-bold text-gray-900 ">Arruma</span>
+              <span className="text-xl font-bold text-gray-900 ">Unvibe</span>
             </Link>
             <p className="text-sm leading-6 text-gray-600 ">
               Making security accessible for everyone. <br />
               Built for vibe-coders, by vibe-coders.
             </p>
             <div className="flex space-x-6">
-              {/* Social Links */}
             </div>
           </div>
           <div className="mt-16 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
@@ -51,7 +50,7 @@ export function Footer() {
           </div>
         </div>
         <div className="mt-16 border-t border-gray-900/10 pt-8 sm:mt-20 lg:mt-24 ">
-          <p className="text-xs leading-5 text-gray-500 ">&copy; 2024 Arruma Labs Inc. All rights reserved.</p>
+          <p className="text-xs leading-5 text-gray-500 ">&copy; 2025 Unvibe Labs Inc. All rights reserved.</p>
         </div>
       </div>
     </footer>
