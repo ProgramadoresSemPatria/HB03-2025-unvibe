@@ -1,4 +1,5 @@
 import { Probot } from "probot";
+import { registerPullRequestHandlers } from "./handlers/pullRequestHandlers.js";
 
 export default (app: Probot) => {
   app.on("issues.opened", async (context) => {
@@ -8,13 +9,7 @@ export default (app: Probot) => {
     await context.octokit.issues.createComment(issueComment);
   });
 
-  app.on("pull_request.opened", async (context) => {
-    app.log.info(`Pull request opened: ${context.payload.pull_request}`);
-    const pullRequestComment = context.issue({
-      body: "Thanks for opening this pull request!",
-    });
-    await context.octokit.issues.createComment(pullRequestComment);
-  });
+  registerPullRequestHandlers(app);
 
   // For more information on building apps:
   // https://probot.github.io/docs/

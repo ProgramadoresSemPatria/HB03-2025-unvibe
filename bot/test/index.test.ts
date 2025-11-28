@@ -47,27 +47,113 @@ describe("Pull request handlers", () => {
     probot.load(myProbotApp);
   });
 
-  test("logs PR summary when a pull request is opened", async () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    nock.cleanAll();
+    nock.enableNetConnect();
+  });
+
+  test("creates placeholder PR and comment when a pull request is opened", async () => {
+    const branchName = "auto-fix/pr-1-123";
+    vi.spyOn(Date, "now").mockReturnValue(123);
+
     const mock = nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" })
       .get("/repos/octocat/hello-world/pulls/1/files")
-      .reply(200, [{ filename: "README.md" }]);
+      .reply(200, [
+        {
+          filename: "README.md",
+          status: "modified",
+          additions: 1,
+          deletions: 0,
+          patch: "@@ -1 +1 @@",
+        },
+      ])
+      .get("/repos/octocat/hello-world/pulls/1/files")
+      .reply(200, [
+        {
+          filename: "README.md",
+          status: "modified",
+          additions: 1,
+          deletions: 0,
+          patch: "@@ -1 +1 @@",
+        },
+      ])
+      .get("/repos/octocat/hello-world/contents/README.md")
+      .query({ ref: "feature-branch-sha" })
+      .reply(200, {
+        type: "file",
+        encoding: "base64",
+        content: Buffer.from("# README").toString("base64"),
+      })
+      .post("/repos/octocat/hello-world/git/refs", {
+        ref: `refs/heads/${branchName}`,
+        sha: "base-sha",
+      })
+      .reply(201, {})
+      .get("/repos/octocat/hello-world/git/commits/base-sha")
+      .reply(200, { sha: "base-sha", tree: { sha: "tree-sha" } })
+      .post("/repos/octocat/hello-world/git/blobs", {
+        content: /Placeholder auto-fix/,
+        encoding: "utf-8",
+      })
+      .reply(201, { sha: "blob-sha" })
+      .post("/repos/octocat/hello-world/git/trees", {
+        base_tree: "tree-sha",
+        tree: [
+          {
+            path: "auto-fixes/pr-1-placeholder.md",
+            mode: "100644",
+            type: "blob",
+            sha: "blob-sha",
+          },
+        ],
+      })
+      .reply(201, { sha: "new-tree-sha" })
+      .post("/repos/octocat/hello-world/git/commits", {
+        message: "chore: placeholder auto-fix for PR #1",
+        tree: "new-tree-sha",
+        parents: ["base-sha"],
+      })
+      .reply(201, { sha: "commit-sha" })
+      .patch(`/repos/octocat/hello-world/git/refs/heads/${branchName}`, {
+        sha: "commit-sha",
+        force: true,
+      })
+      .reply(200, {})
+      .post("/repos/octocat/hello-world/pulls", {
+        title: "#PR_corrigido",
+        head: branchName,
+        base: "main",
+        body: /Referencia: PR original #1/,
+      })
+      .reply(201, {
+        html_url: "https://github.com/octocat/hello-world/pull/2",
+        number: 2,
+      })
+      .post("/repos/octocat/hello-world/issues/1/comments", {
+        body: /Abri um PR com correcoes de vulnerabilidades/,
+      })
+      .reply(201, {});
 
     const payload = {
       action: "opened",
       installation: { id: 2 },
       repository: { owner: { login: "octocat" }, name: "hello-world" },
-      pull_request: { number: 1, title: "Update docs" },
+      pull_request: {
+        number: 1,
+        title: "Update docs",
+        head: { sha: "feature-branch-sha", ref: "feature-branch" },
+        base: { ref: "main", sha: "base-sha" },
+        html_url: "https://github.com/octocat/hello-world/pull/1",
+      },
     };
 
     await probot.receive({ name: "pull_request", payload });
 
     expect(mock.pendingMocks()).toStrictEqual([]);
-  });
-
-  afterEach(() => {
-    nock.cleanAll();
-    nock.enableNetConnect();
-  });
+  }, 15000);
 });
+
+
