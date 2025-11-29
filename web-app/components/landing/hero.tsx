@@ -11,6 +11,7 @@ export function Hero() {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authChecking, setAuthChecking] = useState(true)
 
   useEffect(() => {
     let isMounted = true
@@ -20,8 +21,12 @@ export function Hero() {
         const { data: { user } } = await supabase.auth.getUser()
         if (isMounted) {
           setIsAuthenticated(!!user)
+          setAuthChecking(false)
         }
       } catch {
+        if (isMounted) {
+          setAuthChecking(false)
+        }
       }
     }
 
@@ -146,7 +151,18 @@ export function Hero() {
             className="mt-10 flex items-center justify-center gap-x-6"
             variants={itemVariants}
           >
-            {isAuthenticated ? (
+            {authChecking ? (
+              <motion.button
+                disabled
+                className="group relative rounded-full bg-gray-900/70 px-8 py-3.5 text-sm font-semibold text-gray-300 shadow-lg shadow-indigo-500/20 border border-gray-800 flex items-center justify-center gap-2 mx-auto overflow-hidden cursor-wait"
+              >
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-60" />
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-400" />
+                </span>
+                <span className="relative z-10">Checking your session...</span>
+              </motion.button>
+            ) : isAuthenticated ? (
               <motion.div
                 className="inline-flex items-center gap-2 rounded-full bg-gray-900/80 px-6 py-3 text-sm font-medium text-gray-400 border border-gray-800 shadow-md cursor-default"
                 initial={{ opacity: 0, y: 8 }}
