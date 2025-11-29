@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Navbar } from '@/components/landing/navbar'
 import { supabase } from '@/lib/supabase/client'
-import { getInstallationIdFromUrl } from '@/lib/utils/url-params'
 import type { User } from '@supabase/supabase-js'
 import { AppBackground } from '@/components/layout/app-background'
 
@@ -133,7 +132,7 @@ function DashboardContent() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75" />
               <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-400" />
             </span>
-            <p className="text-sm text-gray-200">Carregando seu dashboard...</p>
+            <p className="text-sm text-gray-200">Loading your dashboard...</p>
           </motion.div>
         </div>
       </AppBackground>
@@ -212,7 +211,7 @@ function DashboardContent() {
                         strokeLinejoin="round"
                       />
                     </svg>
-                    <span className="font-medium">Logado como</span>
+                    <span className="font-medium">Logged in as</span>
                     <span className="text-gray-200">{user.email}</span>
                   </motion.div>
                 )}
@@ -250,10 +249,10 @@ function DashboardContent() {
                     </span>
                     <div>
                       <p className="text-sm font-semibold text-gray-100">
-                        Modelos de IA
+                        AI Models
                       </p>
                       <p className="text-xs text-gray-400">
-                        Selecione quais modelos seu bot pode chamar durante as análises.
+                        Select which models your bot can call during analyses.
                       </p>
                     </div>
                   </div>
@@ -266,14 +265,14 @@ function DashboardContent() {
                   transition={{ delay: 0.35 }}
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Orquestração multi-modelo
+                  Multi-model orchestration
                 </motion.span>
               </motion.div>
 
               <div className="space-y-4">
                 <p className="text-sm text-gray-400">
-                  Combine diferentes LLMs para equilibrar qualidade, custo e latência. Unvibe pode
-                  escolher automaticamente o melhor modelo para cada tarefa.
+                  Combine different LLMs to balance quality, cost, and latency. Unvibe can
+                  automatically choose the best model for each task.
                 </p>
 
                 <div className="relative mt-4">
@@ -299,8 +298,8 @@ function DashboardContent() {
                         />
                       </svg>
                       {selectedModels.size === 0
-                        ? 'Selecione os modelos de IA'
-                        : `${selectedModels.size} modelo(s) selecionado(s)`}
+                        ? 'Select AI models'
+                        : `${selectedModels.size} model(s) selected`}
                     </span>
                     <motion.svg
                       className="h-5 w-5 text-gray-400"
@@ -332,30 +331,28 @@ function DashboardContent() {
                         <div className="p-2">
                           {AI_MODELS.map((model) => (
                             <label
-                              key={model}
+                              key={model.id}
                               className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-gray-900 cursor-pointer transition-colors"
                             >
                               <div className="flex items-center gap-3">
                                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-gray-900 border border-gray-800 text-xs text-gray-300">
-                                  {model[0]}
+                                  {model.name[0]}
                                 </span>
                                 <div>
                                   <p className="text-sm font-medium text-gray-100">
-                                    {model}
+                                    {model.name}
                                   </p>
                                   <p className="text-xs text-gray-500">
-                                    {model === 'ChatGPT' && 'OpenAI · equilíbrio entre custo e qualidade'}
-                                    {model === 'Claude' && 'Anthropic · ótimo para contextos longos'}
-                                    {model === 'Gemini' && 'Google · forte em contexto multimodal'}
-                                    {model === 'Llama' && 'Meta · modelo aberto e flexível'}
-                                    {model === 'Mistral' && 'Mistral · rápido e econômico'}
+                                    {model.id === 'sonnet-4.5' && 'Anthropic · great for long contexts'}
+                                    {model.id === 'gpt-5.1' && 'OpenAI · balance between cost and quality'}
+                                    {model.id === 'gemini-3.0' && 'Google · strong in multimodal context'}
                                   </p>
                                 </div>
                               </div>
                               <input
                                 type="checkbox"
-                                checked={selectedModels.has(model)}
-                                onChange={() => toggleModel(model)}
+                                checked={selectedModels.has(model.id)}
+                                onChange={() => toggleModel(model.id)}
                                 className="h-4 w-4 text-indigo-500 focus:ring-indigo-500 border-gray-600 rounded bg-gray-900"
                               />
                             </label>
@@ -391,49 +388,104 @@ function DashboardContent() {
                           strokeLinejoin="round"
                         />
                       </svg>
-                      Modelos selecionados
+                      Selected Models
                     </h3>
                     <p className="text-xs text-gray-500 mb-3">
-                      Esses modelos serão usados nas próximas execuções do bot.
+                      These models will be used in the bot&apos;s next executions.
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {getSelectedModelsList().map((model) => (
-                        <motion.div
-                          key={model}
-                          layout
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -6 }}
-                          className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/40 rounded-full"
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                          <span className="text-xs font-medium text-indigo-100">
-                            {model}
-                          </span>
-                          <button
-                            onClick={() => toggleModel(model)}
-                            className="text-indigo-300 hover:text-indigo-100 transition-colors"
+                      {getSelectedModelsList().map((modelId) => {
+                        const model = AI_MODELS.find(m => m.id === modelId)
+                        return (
+                          <motion.div
+                            key={modelId}
+                            layout
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/40 rounded-full"
                           >
-                            <svg
-                              className="h-3.5 w-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
+                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+                            <span className="text-xs font-medium text-indigo-100">
+                              {model?.name || modelId}
+                            </span>
+                            <button
+                              onClick={() => toggleModel(modelId)}
+                              className="text-indigo-300 hover:text-indigo-100 transition-colors"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M6 18L18 6M6 6l12 12"
-                              />
-                            </svg>
-                          </button>
-                        </motion.div>
-                      ))}
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </motion.div>
+                        )
+                      })}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-800">
+                <div className="flex-1">
+                  <AnimatePresence>
+                    {saveSuccess && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        className="flex items-center text-emerald-400"
+                      >
+                        <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="text-sm font-medium">Configuration saved successfully!</span>
+                      </motion.div>
+                    )}
+                    {saveError && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        className="flex items-center text-red-400"
+                      >
+                        <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span className="text-sm font-medium">{saveError}</span>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <motion.button
+                  onClick={handleSave}
+                  disabled={saving || selectedModels.size === 0}
+                  whileHover={{ scale: saving || selectedModels.size === 0 ? 1 : 1.02 }}
+                  whileTap={{ scale: saving || selectedModels.size === 0 ? 1 : 0.98 }}
+                  className="px-6 py-3 bg-linear-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg shadow-indigo-500/20 hover:from-indigo-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {saving ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </span>
+                  ) : (
+                    'Save Configuration'
+                  )}
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         </div>
@@ -448,7 +500,7 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-white font-sans selection:bg-indigo-100 selection:text-indigo-900">
         <Navbar />
         <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-          <p className="text-gray-600">Carregando...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     }>
@@ -456,19 +508,3 @@ export default function DashboardPage() {
     </Suspense>
   )
 }
-
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-white font-sans selection:bg-indigo-100 selection:text-indigo-900">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
-          <p className="text-gray-600">Carregando...</p>
-        </div>
-      </div>
-    }>
-      <DashboardContent />
-    </Suspense>
-  )
-}
-
