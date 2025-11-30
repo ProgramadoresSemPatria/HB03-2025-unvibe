@@ -18,8 +18,8 @@ function DashboardContent() {
   const searchParams = useSearchParams()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [selectedModel, setSelectedModel] = useState<string | null>(null)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set())
   const [installationId, setInstallationId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -54,7 +54,11 @@ function DashboardContent() {
               const models = Array.isArray(config.model_name) 
                 ? config.model_name 
                 : JSON.parse(config.model_name)
-              setSelectedModels(new Set(models))
+              // Get the first model if array, or the model itself if string
+              const firstModel = Array.isArray(models) ? models[0] : models
+              if (firstModel) {
+                setSelectedModel(firstModel)
+              }
             }
           }
         } catch (error) {
@@ -68,6 +72,23 @@ function DashboardContent() {
     loadData()
   }, [searchParams])
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (isDropdownOpen && !target.closest('.dropdown-container')) {
+        setIsDropdownOpen(false)
+      }
+    }
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isDropdownOpen])
+
   const handleSave = async () => {
     setSaving(true)
     setSaveSuccess(false)
@@ -80,7 +101,7 @@ function DashboardContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model_names: Array.from(selectedModels),
+          model_names: selectedModel ? [selectedModel] : [],
           installation_id: installationId ? parseInt(installationId) : null,
         }),
       })
@@ -101,20 +122,9 @@ function DashboardContent() {
     }
   }
 
-  const toggleModel = (modelName: string) => {
-    setSelectedModels(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(modelName)) {
-        newSet.delete(modelName)
-      } else {
-        newSet.add(modelName)
-      }
-      return newSet
-    })
-  }
-
-  const getSelectedModelsList = () => {
-    return Array.from(selectedModels)
+  const handleModelChange = (modelId: string) => {
+    setSelectedModel(modelId === '' ? null : modelId)
+    setIsDropdownOpen(false)
   }
 
   if (loading) {
@@ -249,10 +259,10 @@ function DashboardContent() {
                     </span>
                     <div>
                       <p className="text-sm font-semibold text-gray-100">
-                        AI Models
+                        AI Model
                       </p>
                       <p className="text-xs text-gray-400">
-                        Select which models your bot can call during analyses.
+                        Select which model your bot will use during analyses.
                       </p>
                     </div>
                   </div>
@@ -265,17 +275,16 @@ function DashboardContent() {
                   transition={{ delay: 0.35 }}
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Multi-model orchestration
+                  Single model selection
                 </motion.span>
               </motion.div>
 
               <div className="space-y-4">
                 <p className="text-sm text-gray-400">
-                  Combine different LLMs to balance quality, cost, and latency. Unvibe can
-                  automatically choose the best model for each task.
+                  Choose the AI model that best fits your needs. Unvibe will use this model for all analyses.
                 </p>
 
-                <div className="relative mt-4">
+                <div className="relative mt-4 dropdown-container">
                   <motion.button
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -297,9 +306,14 @@ function DashboardContent() {
                           strokeLinejoin="round"
                         />
                       </svg>
-                      {selectedModels.size === 0
-                        ? 'Select AI models'
-                        : `${selectedModels.size} model(s) selected`}
+                      {selectedModel ? (
+                        (() => {
+                          const model = AI_MODELS.find(m => m.id === selectedModel)
+                          return model?.name || 'Select an AI model'
+                        })()
+                      ) : (
+                        'Select an AI model'
+                      )}
                     </span>
                     <motion.svg
                       className="h-5 w-5 text-gray-400"
@@ -330,15 +344,21 @@ function DashboardContent() {
                       >
                         <div className="p-2">
                           {AI_MODELS.map((model) => (
-                            <label
+                            <button
                               key={model.id}
-                              className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-gray-900 cursor-pointer transition-colors"
+                              type="button"
+                              onClick={() => handleModelChange(model.id)}
+                              className={`w-full flex items-center justify-between gap-3 p-3 rounded-lg transition-colors ${
+                                selectedModel === model.id
+                                  ? 'bg-indigo-500/10 border border-indigo-500/40'
+                                  : 'hover:bg-gray-900 border border-transparent'
+                              }`}
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3 flex-1">
                                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-gray-900 border border-gray-800 text-xs text-gray-300">
                                   {model.name[0]}
                                 </span>
-                                <div>
+                                <div className="text-left flex-1">
                                   <p className="text-sm font-medium text-gray-100">
                                     {model.name}
                                   </p>
@@ -349,91 +369,59 @@ function DashboardContent() {
                                   </p>
                                 </div>
                               </div>
-                              <input
-                                type="checkbox"
-                                checked={selectedModels.has(model.id)}
-                                onChange={() => toggleModel(model.id)}
-                                className="h-4 w-4 text-indigo-500 focus:ring-indigo-500 border-gray-600 rounded bg-gray-900"
-                              />
-                            </label>
+                              {selectedModel === model.id && (
+                                <svg
+                                  className="h-5 w-5 text-indigo-400"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              )}
+                            </button>
                           ))}
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
-              </div>
-
-              <AnimatePresence>
-                {selectedModels.size > 0 && (
+                
+                {selectedModel && (
                   <motion.div
-                    key="selected-models"
-                    initial={{ opacity: 0, y: 12 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -12 }}
-                    transition={{ delay: 0.2 }}
-                    className="mt-8 pt-6 border-t border-gray-800"
+                    className="mt-3 p-3 bg-indigo-500/10 border border-indigo-500/40 rounded-lg"
                   >
-                    <h3 className="text-sm font-semibold text-gray-100 mb-3 flex items-center gap-2">
-                      <svg
-                        className="h-4 w-4 text-indigo-400"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                      >
-                        <path
-                          d="M5 13l4 4L19 7"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      Selected Models
-                    </h3>
-                    <p className="text-xs text-gray-500 mb-3">
-                      These models will be used in the bot&apos;s next executions.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {getSelectedModelsList().map((modelId) => {
-                        const model = AI_MODELS.find(m => m.id === modelId)
-                        return (
-                          <motion.div
-                            key={modelId}
-                            layout
-                            initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -6 }}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-500/10 border border-indigo-500/40 rounded-full"
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
-                            <span className="text-xs font-medium text-indigo-100">
-                              {model?.name || modelId}
-                            </span>
-                            <button
-                              onClick={() => toggleModel(modelId)}
-                              className="text-indigo-300 hover:text-indigo-100 transition-colors"
-                            >
-                              <svg
-                                className="h-3.5 w-3.5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
-                            </button>
-                          </motion.div>
-                        )
-                      })}
-                    </div>
+                    {(() => {
+                      const model = AI_MODELS.find(m => m.id === selectedModel)
+                      return model ? (
+                        <div className="flex items-start gap-3">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-indigo-500/20 border border-indigo-500/40 text-xs text-indigo-300">
+                            {model.name[0]}
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-100">
+                              {model.name}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {model.id === 'sonnet-4.5' && 'Anthropic · great for long contexts'}
+                              {model.id === 'gpt-5.1' && 'OpenAI · balance between cost and quality'}
+                              {model.id === 'gemini-3.0' && 'Google · strong in multimodal context'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : null
+                    })()}
                   </motion.div>
                 )}
-              </AnimatePresence>
+              </div>
+
 
               <div className="mt-8 flex items-center justify-between pt-6 border-t border-gray-800">
                 <div className="flex-1">
@@ -468,9 +456,9 @@ function DashboardContent() {
                 </div>
                 <motion.button
                   onClick={handleSave}
-                  disabled={saving || selectedModels.size === 0}
-                  whileHover={{ scale: saving || selectedModels.size === 0 ? 1 : 1.02 }}
-                  whileTap={{ scale: saving || selectedModels.size === 0 ? 1 : 0.98 }}
+                  disabled={saving || !selectedModel}
+                  whileHover={{ scale: saving || !selectedModel ? 1 : 1.02 }}
+                  whileTap={{ scale: saving || !selectedModel ? 1 : 0.98 }}
                   className="px-6 py-3 bg-linear-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg shadow-indigo-500/20 hover:from-indigo-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {saving ? (
