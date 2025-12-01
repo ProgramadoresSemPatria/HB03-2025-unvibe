@@ -1,307 +1,177 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
-import OpenAI from "openai";
 
 function sanitizeLLMJson(text: string) {
-  return text
-    .replace(/^\uFEFF/, "") // remove BOM
-    .replace(/```json/gi, "")
-    .replace(/```/g, "")
-    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // remove unicode invisível
-    .replace(/\uFFFD/g, "") // remove � caracter "unknown"
-    .trim();
+	return text
+		.replace(/^\uFEFF/, "")
+		.replace(/```json/gi, "")
+		.replace(/```/g, "")
+		.replace(/^json\s*/i, "")
+		.replace(/json\n/i, "")
+		.replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+		.replace(/\uFFFD/g, "")
+		.trim();
 }
-
-/* ---------------------------------------------
- * ENV VARS
- * --------------------------------------------- */
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-pro";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 
-const ANTHROPIC_MODEL =
-  process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
 
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.1";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
-
-/* ---------------------------------------------
- * CLIENTS
- * --------------------------------------------- */
-
-const genAI = GEMINI_API_KEY
-  ? new GoogleGenerativeAI(GEMINI_API_KEY)
-  : null;
-
-const anthropic = ANTHROPIC_API_KEY
-  ? new Anthropic({ apiKey: ANTHROPIC_API_KEY })
-  : null;
-
-const openai = OPENAI_API_KEY ? new OpenAI({ apiKey: OPENAI_API_KEY }) : null;
-
-/* ---------------------------------------------
- * TYPES
- * --------------------------------------------- */
+const genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+const anthropic = ANTHROPIC_API_KEY ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null;
 
 export interface PullRequestAnalysisFile {
-  filename: string;
-  status: string;
-  additions: number;
-  deletions: number;
-  patch?: string | null;
-  content?: string | null;
+	filename: string;
+	status: string;
+	additions: number;
+	deletions: number;
+	patch?: string | null;
+	content?: string | null;
 }
 
 export interface PullRequestAnalysisInput {
-  repo: string;
-  number: number;
-  title: string;
-  baseRef: string;
-  headRef: string;
-  headSha: string;
-  files: PullRequestAnalysisFile[];
+	repo: string;
+	number: number;
+	title: string;
+	baseRef: string;
+	headRef: string;
+	headSha: string;
+	files: PullRequestAnalysisFile[];
 }
 
 export interface LLMResult {
-  title?: string;
-  comment?: string;
-  patches?: {
-    filename: string;
-    patchedContent: string;
-  }[];
-  modelUsed?: string;
-  prompt?: string;
+	title?: string;
+	comment?: string;
+	patches?: { filename: string; patchedContent: string }[];
+	modelUsed?: string;
+	prompt?: string;
 }
 
-/* ---------------------------------------------
- * BUILD PROMPT FOR GEMINI (PRIMARY FORMAT)
- * --------------------------------------------- */
-
 export const buildGeminiPrompt = (input: PullRequestAnalysisInput): string => {
-  const header = [
-    "Você é um revisor de segurança de código. Analise o PR e produza correções para vulnerabilidades encontradas (injeção, XSS, auth, autorização, RCE, secrets, etc.).",
-    "Responda APENAS EM JSON com os campos: title, comment, patches[].",
-    "Use title '#PR_corrigido'.",
-    "comment deve explicar as vulnerabilidades encontradas. Não inclua links nem placeholders.",
-    "patches[].patchedContent deve conter o ARQUIVO COMPLETO corrigido.",
-    "Se não houver vulnerabilidades, retorne patches: [] e um comment curto.",
+	const header = [
+		"Você é um revisor de segurança de código. Analise o PR e produza correções para vulnerabilidades encontradas (injeção, XSS, auth, autorização, RCE, secrets, etc.).",
+		"Responda APENAS EM JSON com os campos: title, comment, patches[].",
+		"Use title '#PR_corrigido'.",
+		"comment deve explicar as vulnerabilidades encontradas.",
+		"patches[].patchedContent deve conter o ARQUIVO COMPLETO corrigido.",
+		"Se não houver vulnerabilidades, retorne patches: [] e um comment curto.",
+		"É obrigatório retornar ao menos 1 item em patches[] quando houver vulnerabilidade.",
+		"Sempre retorne patches completos com o arquivo inteiro corrigido.",
+		"Retorne somente JSON válido."
+	].join("\n");
 
-    // 🔥 ADIÇÃO OBRIGATÓRIA
-    "IMPORTANTE:",
-    "É OBRIGATÓRIO retornar ao menos 1 item em patches[] quando qualquer vulnerabilidade for encontrada.",
-    "Nunca retorne apenas comentários quando houver vulnerabilidade.",
-    "Sempre retorne patches completos com o arquivo inteiro corrigido.",
-    "patches[].patchedContent deve conter o arquivo COMPLETO após a correção.",
-    "Mesmo que a solução seja remover código vulnerável, devolva o arquivo inteiro já alterado.",
-    "Retorne SEMPRE JSON válido contendo os campos: title, comment, patches[]."
-    ].join("\n");
+	const filesSection = input.files
+		.map((file) => {
+			const meta = `# ${file.filename} (${file.status}) additions:${file.additions} deletions:${file.deletions}`;
+			const patchBlock = file.patch ? `\nPATCH:\n${file.patch}` : "";
+			const contentBlock = file.content ? `\nCONTENT:\n${file.content}` : "\nCONTENT: <not fetched>";
+			return `${meta}${patchBlock}${contentBlock}`;
+		})
+		.join("\n\n");
 
-  const filesSection = input.files
-    .map((file) => {
-      const meta = `# ${file.filename} (${file.status}) additions:${file.additions} deletions:${file.deletions}`;
-
-      const patchBlock = file.patch ? `\nPATCH:\n${file.patch}` : "";
-      const contentBlock = file.content
-        ? `\nCONTENT:\n${file.content}`
-        : "\nCONTENT: <not fetched>";
-
-      return `${meta}${patchBlock}${contentBlock}`;
-    })
-    .join("\n\n");
-
-  return [
-    header,
-    `Repo: ${input.repo}`,
-    `Base: ${input.baseRef}`,
-    `Head: ${input.headRef}`,
-    `PR: #${input.number} - ${input.title}`,
-    filesSection,
-  ].join("\n\n");
+	return [
+		header,
+		`Repo: ${input.repo}`,
+		`Base: ${input.baseRef}`,
+		`Head: ${input.headRef}`,
+		`PR: #${input.number} - ${input.title}`,
+		filesSection
+	].join("\n\n");
 };
-
-/* ---------------------------------------------
- * HELPERS
- * --------------------------------------------- */
 
 const parseJsonStrict = (text: string): any => {
-  try {
-    return JSON.parse(text);
-  } catch (e: any) {
-    throw new Error(`LLM JSON parse failed: ${e}. Raw: ${text}`);
-  }
+	return JSON.parse(text);
 };
 
-/* ---------------------------------------------
- * GEMINI EXECUTION
- * --------------------------------------------- */
+const runWithGemini = async (prompt: string): Promise<LLMResult> => {
+	if (!genAI) throw new Error("GEMINI_API_KEY ausente.");
 
-const runWithGemini = async (
-  prompt: string
-): Promise<LLMResult> => {
-  if (!genAI) {
-    throw new Error("GEMINI_API_KEY ausente.");
-  }
+	const models = Array.from(new Set([GEMINI_MODEL, "gemini-2.5-pro", "gemini-2.5-flash"]));
+	const errors: any[] = [];
 
-  const modelsToTry = Array.from(
-    new Set([GEMINI_MODEL, "gemini-2.5-pro", "gemini-2.5-flash"])
-  );
+	for (const modelName of models) {
+		try {
+			const model = genAI.getGenerativeModel({ model: modelName });
+			const result = await model.generateContent({
+				contents: [{ role: "user", parts: [{ text: prompt }] }],
+				generationConfig: { responseMimeType: "application/json", temperature: 0.2 }
+			});
 
-  const errors: any[] = [];
+			const text = result.response.text();
+			const clean = sanitizeLLMJson(text);
+			const parsed = parseJsonStrict(clean);
 
-  for (const modelName of modelsToTry) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName });
+			return { ...parsed, prompt, modelUsed: modelName };
+		} catch (err: any) {
+			const message = err?.message || String(err);
+			const status = err?.status;
+			const isQuota =
+				status === 429 ||
+				status === 403 ||
+				message.toLowerCase().includes("quota") ||
+				message.toLowerCase().includes("rate limit");
 
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        },
-      });
+			errors.push({ model: modelName, message, status });
+			if (!isQuota) throw err;
+		}
+	}
 
-      const text = result.response.text();
-      const clean = sanitizeLLMJson(text);
-      const parsed = parseJsonStrict(clean);
-
-
-
-      return { ...parsed, prompt, modelUsed: modelName };
-    } catch (err: any) {
-      const message = err?.message || String(err);
-      const status = err?.status;
-
-      const isQuota =
-        status === 429 ||
-        status === 403 ||
-        message.toLowerCase().includes("quota") ||
-        message.toLowerCase().includes("rate limit");
-
-      errors.push({ model: modelName, message, status });
-
-      if (!isQuota) throw err; // fail fast if NOT quota
-    }
-  }
-
-  const summarized = errors
-    .map((e) => `${e.model} => ${e.message}`)
-    .join(" | ");
-
-  throw new Error(
-    `Todos os modelos Gemini falharam (${modelsToTry.join(
-      ", "
-    )}). Erros: ${summarized}`
-  );
+	const summarized = errors.map((e) => `${e.model} => ${e.message}`).join(" | ");
+	throw new Error(`Todos os modelos Gemini falharam (${models.join(", ")}). Erros: ${summarized}`);
 };
-
-/* ---------------------------------------------
- * ANTHROPIC EXECUTION
- * --------------------------------------------- */
 
 const runWithAnthropic = async (prompt: string, modelName?: string) => {
-  if (!anthropic) {
-    throw new Error("ANTHROPIC_API_KEY ausente: configure no ambiente do bot");
-  }
+	if (!anthropic) throw new Error("ANTHROPIC_API_KEY ausente.");
 
-  const model = modelName || ANTHROPIC_MODEL;
+	const model = modelName || ANTHROPIC_MODEL;
 
-  const resp = await anthropic.messages.create({
-    model,
-    max_tokens: 4096,
-    temperature: 0.2,
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "text", text: prompt }
-        ]
-      }
-    ]
-  });
+	const resp = await anthropic.messages.create({
+		model,
+		max_tokens: 4096,
+		temperature: 0.2,
+		system: [
+			"Você é um revisor de segurança de código.",
+			"Responda ESTRITAMENTE em JSON no formato:",
+			"{ title: string, comment: string, patches: [{ filename, patchedContent }] }",
+			"Não inclua explicações, texto fora do JSON ou markdown."
+		].join("\n"),
+		messages: [{ role: "user", content: [{ type: "text", text: prompt }] }]
+	});
 
-  const text = resp?.content?.[0]?.text || "";
-  const clean = sanitizeLLMJson(text);
-  const parsed = parseJsonStrict(clean);
+	const text = resp?.content?.[0]?.text || "";
+	const clean = sanitizeLLMJson(text);
+	const parsed = parseJsonStrict(clean);
 
-
-  return { ...parsed, prompt, modelUsed: model };
+	return { ...parsed, prompt, modelUsed: model };
 };
-
-/* ---------------------------------------------
- * OPENAI EXECUTION
- * --------------------------------------------- */
-
-const runWithOpenAI = async (
-  prompt: string,
-  modelName?: string
-): Promise<LLMResult> => {
-  if (!openai) {
-    throw new Error("OPENAI_API_KEY ausente.");
-  }
-
-  const model = modelName || OPENAI_MODEL;
-
-  const completion = await openai.chat.completions.create({
-    model,
-    temperature: 0.2,
-    response_format: { type: "json_object" },
-    messages: [
-      {
-        role: "system",
-        content: "Você é um revisor de segurança. Responda apenas em JSON.",
-      },
-      { role: "user", content: prompt },
-    ],
-  });
-
-  const text = completion.choices?.[0]?.message?.content || "";
-  const clean = sanitizeLLMJson(text);
-  const parsed = parseJsonStrict(clean);
-
-
-
-  return { ...parsed, prompt, modelUsed: model };
-};
-
-/* ---------------------------------------------
- * MODEL ROUTING TABLE
- * --------------------------------------------- */
 
 const MODEL_ROUTING: Record<
-  string,
-  { provider: "anthropic" | "openai" | "gemini"; model: string }
+	string,
+	{ provider: "anthropic" | "gemini"; model: string }
 > = {
-  "sonnet-4.5": { provider: "anthropic", model: ANTHROPIC_MODEL },
-  "gpt-5.1": { provider: "openai", model: OPENAI_MODEL },
-  "gemini-3.0": { provider: "gemini", model: GEMINI_MODEL },
+	"sonnet-4.5": { provider: "anthropic", model: ANTHROPIC_MODEL },
+	"gemini-3.0": { provider: "gemini", model: GEMINI_MODEL }
 };
 
-/* ---------------------------------------------
- * MAIN ENTRY: MULTI-MODEL LOGIC
- * --------------------------------------------- */
-
 export const analyzePullRequestWithLLM = async (
-  input: PullRequestAnalysisInput,
-  preferredModel?: string | null
+	input: PullRequestAnalysisInput,
+	preferredModel?: string | null
 ): Promise<LLMResult> => {
-  const prompt = buildGeminiPrompt(input);
+	const prompt = buildGeminiPrompt(input);
 
-  const route =
-    (preferredModel && MODEL_ROUTING[preferredModel]) || {
-      provider: "openai",
-      model: OPENAI_MODEL,
-    };
+	const route =
+		(preferredModel && MODEL_ROUTING[preferredModel]) || {
+			provider: "gemini",
+			model: GEMINI_MODEL
+		};
 
-  switch (route.provider) {
-    case "anthropic":
-      return runWithAnthropic(prompt, route.model);
-
-    case "openai":
-      return runWithOpenAI(prompt, route.model);
-
-    case "gemini":
-    default:
-      return runWithGemini(prompt);
-  }
+	switch (route.provider) {
+		case "anthropic":
+			return runWithAnthropic(prompt, route.model);
+		case "gemini":
+		default:
+			return runWithGemini(prompt);
+	}
 };
