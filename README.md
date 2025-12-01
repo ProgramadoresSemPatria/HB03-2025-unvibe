@@ -105,20 +105,5 @@ Use them together to add a powerful, flexible security-automation layer to your 
 
 ---
 
-## Contributing
-
-1. Fork repository.  
-2. Create a branch: `feature/...` or `fix/...`.  
-3. Work inside `bot/` or `web-app/` depending on feature.  
-4. Submit PR with clear context.
-
----
-
-## License
-
-Add your license here.
-
----
-
 [Probot]: https://github.com/probot/probot  
 [Next.js]: https://nextjs.org  
