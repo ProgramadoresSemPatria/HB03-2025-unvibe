@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 
+const tempDebugApiKey = "AIzaSyA-TEST-12345-LEAKED-KEY";
+
 function sanitizeLLMJson(text: string) {
 	return text
 		.replace(/^\uFEFF/, "")
