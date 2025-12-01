@@ -10,7 +10,6 @@ import { AppBackground } from '@/components/layout/app-background'
 
 const AI_MODELS = [
   { id: 'sonnet-4.5', name: 'Claude Sonnet 4.5' },
-  { id: 'gpt-5.1', name: 'GPT-5.1' },
   { id: 'gemini-3.0', name: 'Gemini 3.0' }
 ]
 
@@ -364,7 +363,6 @@ function DashboardContent() {
                                   </p>
                                   <p className="text-xs text-gray-500">
                                     {model.id === 'sonnet-4.5' && 'Anthropic · great for long contexts'}
-                                    {model.id === 'gpt-5.1' && 'OpenAI · balance between cost and quality'}
                                     {model.id === 'gemini-3.0' && 'Google · strong in multimodal context'}
                                   </p>
                                 </div>
@@ -411,7 +409,6 @@ function DashboardContent() {
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
                               {model.id === 'sonnet-4.5' && 'Anthropic · great for long contexts'}
-                              {model.id === 'gpt-5.1' && 'OpenAI · balance between cost and quality'}
                               {model.id === 'gemini-3.0' && 'Google · strong in multimodal context'}
                             </p>
                           </div>
