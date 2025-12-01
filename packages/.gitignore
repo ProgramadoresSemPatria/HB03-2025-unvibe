@@ -4,4 +4,4 @@ npm-debug.log
 !mock-cert.pem
 .env
 coverage
-test/fixtures/mock-cert.pem
+lib
