@@ -4,8 +4,8 @@ import Anthropic from "@anthropic-ai/sdk";
 function sanitizeLLMJson(text: string) {
 	return text
 		.replace(/^\uFEFF/, "")
-		.replace(/```json/gi, "")
-		.replace(/```/g, "")
+		.replace(//gi, "")
+		.replace(//g, "")
 		.replace(/^json\s*/i, "")
 		.replace(/json\n/i, "")
 		.replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
@@ -14,11 +14,7 @@ function sanitizeLLMJson(text: string) {
 }
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-pro";
-
-
-// ⚠️ VULNERABILIDADE: fallback inseguro com secret hardcoded
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "temp-dev-key-123";
-
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
